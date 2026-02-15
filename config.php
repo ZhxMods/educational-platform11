@@ -20,9 +20,9 @@ define('SITE_URL',  'https://yourdomain.rf.gd');  // CHANGE THIS: your actual do
 define('SITE_NAME', 'منصة التعليم | Plateforme Éducative');
 
 // ─────────────────────────────────────────────
-//  LANGUAGE
+//  LANGUAGE - DEFAULT CHANGED TO FRENCH
 // ─────────────────────────────────────────────
-define('DEFAULT_LANG',    'ar');
+define('DEFAULT_LANG',    'fr');  // Changed from 'ar' to 'fr'
 define('AVAILABLE_LANGS', ['ar', 'fr', 'en']);
 define('LANG_DIR',        __DIR__ . '/lang/');
 

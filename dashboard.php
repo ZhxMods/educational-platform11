@@ -3,13 +3,12 @@
  * dashboard.php — Student Dashboard
  * Theme : Professional Blue & White
  * RTL   : Full Arabic support
- * Tabs  : My Lessons | Leaderboard | Achievements
+ * Tabs  : My Lessons | Subjects | Quizzes | Leaderboard | Achievements
  */
 
 declare(strict_types=1);
 
 require_once 'includes/auth_check.php';   // also loads config, db, functions + csrf
-// EDIT 2: csrf.php is now loaded inside auth_check.php automatically
 
 $currentLang = getCurrentLang();
 $dir         = getDirection();
@@ -61,6 +60,24 @@ $recentLessons = $levelId
     )
     : [];
 
+// ── Quizzes for this level ────────────────────────────────────
+$quizzes = $levelId
+    ? db_all(
+        "SELECT q.*, 
+                s.name_ar AS sub_ar, s.name_fr AS sub_fr, s.name_en AS sub_en, 
+                s.color,
+                (SELECT COUNT(*) FROM quiz_attempts qa 
+                 WHERE qa.quiz_id = q.id AND qa.user_id = ?) AS attempt_count,
+                (SELECT MAX(score) FROM quiz_attempts qa 
+                 WHERE qa.quiz_id = q.id AND qa.user_id = ?) AS best_score
+         FROM   quizzes q
+         JOIN   subjects s ON q.subject_id = s.id
+         WHERE  s.level_id = ? AND q.is_active = 1
+         ORDER  BY s.display_order, q.id",
+        [(int) $user['id'], (int) $user['id'], $levelId]
+    )
+    : [];
+
 // ── Stats ─────────────────────────────────────────────────────
 $completedCount = (int) db_row(
     "SELECT COUNT(*) AS n FROM lesson_progress WHERE user_id = ? AND status = 'completed'",
@@ -103,7 +120,6 @@ $pageTitle = t('dashboard') . ' — ' . t('app_name');
 $typeIcons  = ['video' => 'play-circle', 'pdf' => 'file-text', 'book' => 'book-open'];
 $typeColors = ['video' => '#3b82f6', 'pdf' => '#ef4444', 'book' => '#10b981'];
 
-// EDIT 1: Generate CSRF token for AJAX calls
 $csrfToken = getCsrfToken();
 ?>
 <!DOCTYPE html>
@@ -113,14 +129,12 @@ $csrfToken = getCsrfToken();
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?php echo htmlspecialchars($pageTitle); ?></title>
 
-  <!-- EDIT 1: CSRF meta tag for xp-system.js -->
   <meta name="csrf-token" content="<?php echo $csrfToken; ?>">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 
-  <!-- EDIT 1: XP Animation CSS -->
   <link rel="stylesheet" href="css/xp-animations.css">
 
   <style>
@@ -249,7 +263,7 @@ $csrfToken = getCsrfToken();
       border-top: none; border-bottom: none;
       border-<?php echo $isRtl ? 'left' : 'right'; ?>: none;
       width: 100%; text-align: <?php echo $isRtl ? 'right' : 'left'; ?>;
-      transition: all .2s; font-family: inherit;
+      transition: all .2s; font-family: var(--font-body);
     }
     .sidebar-item:hover { background: var(--blue-50); color: var(--blue-700); }
     .sidebar-item.active {
@@ -378,7 +392,6 @@ $csrfToken = getCsrfToken();
     .lesson-meta { display: flex; align-items: center; gap: 1rem; font-size: .75rem; color: var(--gray-500); }
     .lesson-meta span { display: flex; align-items: center; gap: .3rem; }
 
-    /* ── EDIT 3: Lesson action buttons ── */
     .btn-lesson {
       display: flex; align-items: center; justify-content: center; gap: .4rem;
       width: 100%; padding: .6rem; border-radius: 8px;
@@ -433,7 +446,7 @@ $csrfToken = getCsrfToken();
         position: fixed; top: 64px;
         <?php echo $isRtl ? 'right' : 'left'; ?>: 0;
         height: calc(100vh - 64px); z-index: 90;
-        transform: translateX(<?php echo $isRtl ? '100%' : '-100%'; ?>);
+        transform: translateX(<?php echo $isRtl ? '100%' : '-100%'; %>);
         box-shadow: 4px 0 20px rgba(0,0,0,.15);
       }
       .sidebar.open { transform: translateX(0); }
@@ -463,13 +476,11 @@ $csrfToken = getCsrfToken();
   <div class="level-badge">
     <i data-lucide="star" width="13" height="13"></i>
     <?php echo t('level'); ?>
-    <!-- EDIT 4B: data-level-display for JS count-up -->
     <span data-level-display><?php echo (int) $user['current_level']; ?></span>
   </div>
 
   <div class="xp-pill">
     <i data-lucide="zap" width="14" height="14"></i>
-    <!-- EDIT 4A: data-xp-counter for JS count-up -->
     <span class="xp-num" data-xp-counter><?php echo number_format((int) $user['xp_points']); ?></span>
     XP
   </div>
@@ -512,6 +523,13 @@ $csrfToken = getCsrfToken();
       <span class="badge"><?php echo count($subjects); ?></span>
     </button>
 
+    <!-- NEW: Quizzes Button -->
+    <button class="sidebar-item" data-tab="quizzes" onclick="switchTab('quizzes', this)">
+      <i data-lucide="clipboard-list" width="18" height="18"></i>
+      <?php echo t('quizzes'); ?>
+      <span class="badge"><?php echo count($quizzes); ?></span>
+    </button>
+
     <button class="sidebar-item" data-tab="leaderboard" onclick="switchTab('leaderboard', this)">
       <i data-lucide="trophy" width="18" height="18"></i>
       <?php echo t('leaderboard'); ?>
@@ -542,12 +560,10 @@ $csrfToken = getCsrfToken();
         <p>
           <?php echo $levelName; ?> &bull;
           <?php echo t('level'); ?>
-          <!-- EDIT 4B: data-level-display -->
           <span data-level-display><?php echo (int) $user['current_level']; ?></span>
         </p>
       </div>
       <div class="xp-bar-wrap">
-        <!-- EDIT 4A: data-xp-bar-label -->
         <label data-xp-bar-label><?php echo number_format((int) $user['xp_points']); ?> XP &bull; <?php echo round($xpProgress); ?>%</label>
         <div class="xp-bar-track">
           <div class="xp-bar-fill" style="width:<?php echo $xpProgress; ?>%" data-width="<?php echo $xpProgress; ?>%"></div>
@@ -566,7 +582,6 @@ $csrfToken = getCsrfToken();
         </div>
         <div>
           <div class="stat-label"><?php echo t('my_xp'); ?></div>
-          <!-- EDIT 4A: data-xp-counter -->
           <div class="stat-value" data-xp-counter><?php echo number_format((int) $user['xp_points']); ?></div>
         </div>
       </div>
@@ -643,34 +658,22 @@ $csrfToken = getCsrfToken();
             </div>
 
             <?php if ($status === 'completed'): ?>
-            <!-- Completed state — no action needed -->
             <button class="btn-lesson done" disabled>
               <i data-lucide="check-circle-2" width="15" height="15"></i>
               <?php echo t('lesson_completed'); ?>
             </button>
 
             <?php elseif ($status === 'in_progress'): ?>
-            <!-- EDIT 3: Continue button with data-complete-lesson -->
-            <button
-              class="btn-lesson continue"
-              data-complete-lesson
-              data-lesson-id="<?php echo (int)$lesson['id']; ?>"
-              data-xp-reward="<?php echo (int)$lesson['xp_reward']; ?>">
+            <a href="lesson.php?id=<?php echo (int)$lesson['id']; ?>" class="btn-lesson continue">
               <i data-lucide="play" width="15" height="15"></i>
               <?php echo t('continue_learning'); ?>
-            </button>
+            </a>
 
             <?php else: ?>
-            <!-- EDIT 3: Start button with data-complete-lesson -->
-            <button
-              class="btn-lesson start"
-              data-complete-lesson
-              data-lesson-id="<?php echo (int)$lesson['id']; ?>"
-              data-xp-reward="<?php echo (int)$lesson['xp_reward']; ?>">
+            <a href="lesson.php?id=<?php echo (int)$lesson['id']; ?>" class="btn-lesson start">
               <i data-lucide="play-circle" width="15" height="15"></i>
               <?php echo t('start_lesson'); ?>
-            </button>
-
+            </a>
             <?php endif; ?>
           </div>
         </div>
@@ -720,6 +723,75 @@ $csrfToken = getCsrfToken();
             <i data-lucide="arrow-right" width="14" height="14"></i>
             <?php echo t('start_learning'); ?>
           </a>
+        </div>
+        <?php endforeach; ?>
+      </div>
+      <?php endif; ?>
+    </div>
+
+    <!-- TAB: QUIZZES (NEW) -->
+    <div id="tab-quizzes" class="tab-panel">
+      <div class="section-head">
+        <h3><?php echo t('quizzes'); ?> — <?php echo $levelName; ?></h3>
+      </div>
+
+      <?php if (empty($quizzes)): ?>
+      <div class="empty-state">
+        <i data-lucide="clipboard-list" width="48" height="48"></i>
+        <p>No quizzes available yet. Check back soon!</p>
+      </div>
+      <?php else: ?>
+      <div class="lesson-grid">
+        <?php foreach ($quizzes as $quiz):
+          $titleKey    = 'title_' . $currentLang;
+          $subKey      = 'sub_' . $currentLang;
+          $qTitle      = htmlspecialchars($quiz[$titleKey] ?? $quiz['title_ar']);
+          $qSubject    = htmlspecialchars($quiz[$subKey] ?? '');
+          $qColor      = $quiz['color'] ?? '#7c3aed';
+          $attempts    = (int) $quiz['attempt_count'];
+          $maxAttempts = (int) $quiz['max_attempts'];
+          $bestScore   = (int) ($quiz['best_score'] ?? 0);
+          $canAttempt  = $attempts < $maxAttempts;
+        ?>
+        <div class="lesson-card">
+          <div class="lesson-thumb" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);">
+            <i data-lucide="clipboard-list" width="40" height="40" color="rgba(255,255,255,.6)"></i>
+            <span class="content-type-badge">
+              <i data-lucide="help-circle" width="11" height="11"></i>
+              Quiz
+            </span>
+            <?php if ($bestScore >= $quiz['passing_score']): ?>
+            <span class="completed-tick"><i data-lucide="check" width="14" height="14"></i></span>
+            <?php endif; ?>
+          </div>
+          <div class="lesson-body">
+            <span class="lesson-subject" style="background:<?php echo $qColor; ?>20;color:<?php echo $qColor; ?>;">
+              <?php echo $qSubject; ?>
+            </span>
+            <h4><?php echo $qTitle; ?></h4>
+            <div class="lesson-meta">
+              <span><i data-lucide="target" width="12" height="12"></i> <?php echo (int)$quiz['passing_score']; ?>% to pass</span>
+              <span><i data-lucide="zap" width="12" height="12"></i> <?php echo (int)$quiz['xp_reward']; ?> XP</span>
+            </div>
+            <div style="font-size:.75rem;color:var(--gray-500);margin-top:.5rem;">
+              <?php if ($bestScore > 0): ?>
+              Best: <?php echo $bestScore; ?>% &bull; 
+              <?php endif; ?>
+              <?php echo $attempts; ?> / <?php echo $maxAttempts; ?> attempts
+            </div>
+
+            <?php if ($canAttempt): ?>
+            <a href="quiz.php?id=<?php echo (int)$quiz['id']; ?>" class="btn-lesson start">
+              <i data-lucide="play-circle" width="15" height="15"></i>
+              <?php echo $attempts > 0 ? 'Retry Quiz' : 'Start Quiz'; ?>
+            </a>
+            <?php else: ?>
+            <button class="btn-lesson done" disabled>
+              <i data-lucide="lock" width="15" height="15"></i>
+              No attempts left
+            </button>
+            <?php endif; ?>
+          </div>
         </div>
         <?php endforeach; ?>
       </div>
@@ -828,6 +900,7 @@ $csrfToken = getCsrfToken();
     document.getElementById('tab-' + tabId).classList.add('active');
     btn.classList.add('active');
     if (window.innerWidth <= 768) sidebar.classList.remove('open');
+    lucide.createIcons(); // Re-render icons after tab switch
   }
 
   // Animate XP bar on load
@@ -841,7 +914,7 @@ $csrfToken = getCsrfToken();
   });
 </script>
 
-<!-- EDIT 1: XP System JS — must come after lucide.createIcons() -->
+<!-- XP System JS -->
 <script src="js/xp-system.js"></script>
 
 </body>
