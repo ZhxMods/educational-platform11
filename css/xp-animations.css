@@ -1,0 +1,132 @@
+/**
+ * xp-animations.css — XP System visual layer
+ * Professional Blue & White theme + gaming animations.
+ */
+
+/* ════ 1. TOAST NOTIFICATIONS ════════════════════════════════ */
+#toast-container {
+  position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999;
+  display: flex; flex-direction: column-reverse; gap: .65rem;
+  pointer-events: none;
+}
+[dir="rtl"] #toast-container { right: auto; left: 1.5rem; }
+
+.toast {
+  pointer-events: all; display: flex; align-items: center; gap: .75rem;
+  min-width: 260px; max-width: 380px; padding: .875rem 1rem;
+  border-radius: 14px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.16), 0 1px 4px rgba(0,0,0,.08);
+  font-family: 'Cairo','Plus Jakarta Sans',sans-serif;
+  font-size: .875rem; font-weight: 600;
+  opacity: 0; transform: translateX(120%);
+  transition: opacity .35s ease, transform .35s cubic-bezier(.34,1.4,.64,1);
+  backdrop-filter: blur(8px);
+}
+[dir="rtl"] .toast { transform: translateX(-120%); }
+.toast.toast-in  { opacity: 1; transform: translateX(0); }
+.toast.toast-out { animation: toast-slide-out .3s ease forwards; }
+@keyframes toast-slide-out { to { opacity:0; transform:translateX(130%) scale(.9); } }
+
+.toast-success { background: linear-gradient(135deg,#f0fdf4,#dcfce7); border-left:4px solid #22c55e; color:#15803d; }
+.toast-error   { background: linear-gradient(135deg,#fef2f2,#fee2e2); border-left:4px solid #ef4444; color:#b91c1c; }
+.toast-warning { background: linear-gradient(135deg,#fffbeb,#fef3c7); border-left:4px solid #f59e0b; color:#92400e; }
+.toast-info    { background: linear-gradient(135deg,#eff6ff,#dbeafe); border-left:4px solid #3b82f6; color:#1d4ed8; }
+
+[dir="rtl"] .toast-success { border-left:none; border-right:4px solid #22c55e; }
+[dir="rtl"] .toast-error   { border-left:none; border-right:4px solid #ef4444; }
+[dir="rtl"] .toast-warning { border-left:none; border-right:4px solid #f59e0b; }
+[dir="rtl"] .toast-info    { border-left:none; border-right:4px solid #3b82f6; }
+
+.toast-icon  { font-size:1.1rem; flex-shrink:0; }
+.toast-msg   { flex:1; line-height:1.4; }
+.toast-close { background:none; border:none; cursor:pointer; color:inherit; opacity:.5; font-size:.75rem; padding:.1rem; flex-shrink:0; transition:opacity .15s; }
+.toast-close:hover { opacity:1; }
+
+/* ════ 2. FLOATING XP BADGE ════════════════════════════════ */
+.xp-float {
+  position: absolute; z-index: 8888;
+  font-size: 1.3rem; font-weight: 900; color: #f59e0b;
+  text-shadow: 0 0 20px rgba(245,158,11,.6), 0 2px 8px rgba(0,0,0,.3);
+  pointer-events: none; user-select: none;
+  transform: translateX(-50%); white-space: nowrap; opacity: 0;
+}
+.xp-float-active { animation: xp-rise 1.4s cubic-bezier(.22,.61,.36,1) forwards; }
+@keyframes xp-rise {
+  0%   { opacity:0; transform:translateX(-50%) translateY(0) scale(.6); }
+  15%  { opacity:1; transform:translateX(-50%) translateY(-10px) scale(1.25); }
+  55%  { opacity:1; transform:translateX(-50%) translateY(-55px) scale(1); }
+  100% { opacity:0; transform:translateX(-50%) translateY(-90px) scale(.85); }
+}
+
+/* ════ 3. XP PROGRESS BAR ══════════════════════════════════ */
+.xp-bar-track { background:rgba(255,255,255,.18); border-radius:50px; height:10px; overflow:hidden; position:relative; }
+.xp-bar-fill  { height:100%; border-radius:50px; background:linear-gradient(90deg,#fde68a,#f59e0b,#fb923c); box-shadow:0 0 10px rgba(245,158,11,.5); position:relative; overflow:hidden; }
+.xp-bar-fill::after { content:''; position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent); animation:bar-shimmer 2s linear infinite; }
+@keyframes bar-shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(250%)} }
+.xp-bar-track.light { background:#e2e8f0; }
+.xp-bar-track.light .xp-bar-fill { background:linear-gradient(90deg,#1d4ed8,#3b82f6); box-shadow:0 0 10px rgba(59,130,246,.4); }
+
+/* ════ 4. SHIMMER / SKELETON ════════════════════════════════ */
+@keyframes shimmer-wave { 0%{background-position:-700px 0} 100%{background-position:700px 0} }
+.shimmer-card  { background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+.shimmer-thumb { height:110px; background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%); background-size:700px 100%; animation:shimmer-wave 1.4s ease-in-out infinite; }
+.shimmer-body  { padding:1rem; display:flex; flex-direction:column; gap:.6rem; }
+.shimmer-line  { height:12px; border-radius:6px; background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%); background-size:700px 100%; animation:shimmer-wave 1.4s ease-in-out infinite; }
+.shimmer-line.short  { width:45%; }
+.shimmer-line.medium { width:70%; }
+
+/* ════ 5. LESSON CARD COMPLETION ═══════════════════════════ */
+.lesson-card { transition:box-shadow .25s ease, transform .25s ease; }
+.lesson-card.lesson-completed { animation:card-complete-pop .5s cubic-bezier(.34,1.56,.64,1) forwards; }
+@keyframes card-complete-pop { 0%{transform:scale(1)} 45%{transform:scale(1.04);box-shadow:0 0 0 4px rgba(34,197,94,.35)} 100%{transform:scale(1);box-shadow:none} }
+.btn-lesson.done { background:#f0fdf4; color:#15803d; border:1.5px solid #86efac; cursor:default; opacity:.85; }
+.completed-tick  { animation:tick-in .4s cubic-bezier(.34,1.56,.64,1) both; }
+@keyframes tick-in { 0%{transform:scale(0) rotate(-45deg);opacity:0} 100%{transform:scale(1) rotate(0);opacity:1} }
+
+/* ════ 6. LEVEL-UP MODAL ════════════════════════════════════ */
+#levelup-modal { position:fixed; inset:0; z-index:10000; display:flex; align-items:center; justify-content:center; padding:1rem; opacity:0; transition:opacity .3s ease; }
+#levelup-modal.levelup-visible { opacity:1; }
+.levelup-backdrop { position:absolute; inset:0; background:rgba(15,31,92,.65); backdrop-filter:blur(6px); }
+.levelup-card { position:relative; z-index:1; background:#fff; border-radius:24px; padding:2.5rem 2rem; text-align:center; max-width:380px; width:100%; box-shadow:0 32px 64px rgba(0,0,0,.25); transform:scale(.85) translateY(20px); transition:transform .4s cubic-bezier(.34,1.3,.64,1); }
+#levelup-modal.levelup-visible .levelup-card { transform:scale(1) translateY(0); }
+.levelup-stars { display:flex; justify-content:center; gap:.5rem; font-size:2rem; margin-bottom:1rem; }
+.levelup-stars span { display:inline-block; animation:star-spin 1s cubic-bezier(.34,1.56,.64,1) both; }
+.levelup-stars span:nth-child(1){animation-delay:.1s}
+.levelup-stars span:nth-child(2){animation-delay:.25s;font-size:2.6rem}
+.levelup-stars span:nth-child(3){animation-delay:.4s}
+@keyframes star-spin { 0%{transform:scale(0) rotate(-180deg);opacity:0} 100%{transform:scale(1) rotate(0);opacity:1} }
+.levelup-badge-wrap { position:relative; display:inline-flex; align-items:center; justify-content:center; margin-bottom:1.25rem; }
+.levelup-badge { width:88px; height:88px; border-radius:50%; background:linear-gradient(135deg,#1d4ed8,#3b82f6); color:#fff; font-size:2.4rem; font-weight:900; display:flex; align-items:center; justify-content:center; position:relative; z-index:1; box-shadow:0 8px 24px rgba(29,78,216,.4); animation:badge-bounce 1s cubic-bezier(.34,1.56,.64,1) .5s both; }
+@keyframes badge-bounce { 0%{transform:scale(0)} 100%{transform:scale(1)} }
+.levelup-pulse { position:absolute; inset:-8px; border-radius:50%; border:3px solid rgba(59,130,246,.4); animation:pulse-ring 1.5s ease-out .7s infinite; }
+@keyframes pulse-ring { 0%{transform:scale(1);opacity:.7} 100%{transform:scale(1.5);opacity:0} }
+.levelup-title { font-size:2rem; font-weight:900; background:linear-gradient(135deg,#1d4ed8,#60a5fa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; letter-spacing:.04em; margin-bottom:.35rem; }
+.levelup-subtitle { color:#64748b; font-size:.95rem; margin-bottom:1.75rem; }
+.levelup-subtitle strong { color:#1d4ed8; }
+.levelup-btn { display:inline-flex; align-items:center; justify-content:center; padding:.8rem 2.5rem; background:linear-gradient(135deg,#1d4ed8,#3b82f6); color:#fff; border:none; border-radius:50px; font-size:1rem; font-weight:700; font-family:inherit; cursor:pointer; box-shadow:0 4px 16px rgba(29,78,216,.4); transition:transform .15s, box-shadow .15s; }
+.levelup-btn:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(29,78,216,.45); }
+
+/* ════ 7. BUTTON SPINNER ════════════════════════════════════ */
+.btn-spinner { width:16px; height:16px; border:2.5px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; display:inline-block; flex-shrink:0; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+/* ════ 8. XP PILL PULSE ════════════════════════════════════ */
+.xp-pill { transition:transform .2s ease; }
+.xp-pill.xp-pulse { animation:xp-pill-pop .6s cubic-bezier(.34,1.56,.64,1) forwards; }
+@keyframes xp-pill-pop { 0%{transform:scale(1)} 40%{transform:scale(1.18);box-shadow:0 0 16px rgba(245,158,11,.5)} 100%{transform:scale(1);box-shadow:none} }
+
+/* ════ 9. CONFETTI CANVAS ══════════════════════════════════ */
+#confetti-canvas { position:fixed; inset:0; z-index:9998; pointer-events:none; }
+
+/* ════ 10. UTILITY KEYFRAMES ═══════════════════════════════ */
+@keyframes fade-up { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+@keyframes float   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+@keyframes pop-in  { 0%{transform:scale(.7);opacity:0} 80%{transform:scale(1.05)} 100%{transform:scale(1);opacity:1} }
+@keyframes shake   { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
+.animate-shake { animation:shake .4s ease; }
+.animate-pop   { animation:pop-in .4s cubic-bezier(.34,1.56,.64,1); }
+.animate-float { animation:float 3s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,*::before,*::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
+}
