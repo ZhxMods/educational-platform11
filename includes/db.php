@@ -2,6 +2,7 @@
 /**
  * Database Layer — PDO Connection & Helpers
  * InfinityFree Compatible with Enhanced Error Handling
+ * FIXED: Added db() and db_run() functions
  */
 
 declare(strict_types=1);
@@ -258,6 +259,15 @@ function db_connect(): PDO
 // ─────────────────────────────────────────────────────────────
 
 /**
+ * Shorthand for db_connect() - returns PDO instance
+ * FIXED: Added this function
+ */
+function db(): PDO
+{
+    return db_connect();
+}
+
+/**
  * Execute query and return single row (or null)
  */
 function db_row(string $sql, array $params = []): ?array
@@ -282,13 +292,22 @@ function db_all(string $sql, array $params = []): array
 
 /**
  * Execute INSERT/UPDATE/DELETE and return affected rows
+ * FIXED: Renamed from db_exec to db_run (primary function)
  */
-function db_exec(string $sql, array $params = []): int
+function db_run(string $sql, array $params = []): int
 {
     $pdo = db_connect();
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     return $stmt->rowCount();
+}
+
+/**
+ * Backward compatibility alias for db_run
+ */
+function db_exec(string $sql, array $params = []): int
+{
+    return db_run($sql, $params);
 }
 
 /**
@@ -298,6 +317,14 @@ function db_insert_id(): int
 {
     $pdo = db_connect();
     return (int) $pdo->lastInsertId();
+}
+
+/**
+ * Alias for db_insert_id (common naming convention)
+ */
+function db_last_id(): int
+{
+    return db_insert_id();
 }
 
 /**

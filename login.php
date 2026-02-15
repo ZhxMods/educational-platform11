@@ -2,6 +2,7 @@
 /**
  * login.php — Student / Admin Login
  * Theme : Professional Blue & White  |  RTL support
+ * FIXED: White background with subtle blue tint
  */
 
 declare(strict_types=1);
@@ -129,12 +130,11 @@ $pageTitle = t('login') . ' — ' . t('app_name');
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    /* FIXED: White background with subtle blue tint */
     body {
       font-family: <?php echo $isRtl ? "'Cairo'" : "'Plus Jakarta Sans'"; ?>, sans-serif;
-      background: var(--blue-950);
-      background-image:
-        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59,130,246,.35) 0%, transparent 60%),
-        radial-gradient(ellipse 60% 40% at 80% 110%, rgba(29,78,216,.25) 0%, transparent 50%);
+      background: #ffffff;
+      background-image: linear-gradient(135deg, rgba(29,78,216,0.03) 0%, rgba(59,130,246,0.05) 100%);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
@@ -157,12 +157,21 @@ $pageTitle = t('login') . ' — ' . t('app_name');
       font-size: .8rem;
       font-weight: 600;
       text-decoration: none;
-      border: 1.5px solid rgba(255,255,255,.25);
-      color: rgba(255,255,255,.7);
+      border: 1.5px solid var(--gray-300);
+      color: var(--gray-600);
+      background: white;
       transition: all .2s;
     }
-    .lang-btn:hover { background: rgba(255,255,255,.15); color: #fff; }
-    .lang-btn.active { background: var(--blue-500); border-color: var(--blue-500); color: #fff; }
+    .lang-btn:hover { 
+      background: var(--blue-50); 
+      color: var(--blue-700);
+      border-color: var(--blue-300);
+    }
+    .lang-btn.active { 
+      background: var(--blue-700); 
+      border-color: var(--blue-700); 
+      color: #fff; 
+    }
 
     .card {
       width: 100%;
@@ -305,13 +314,13 @@ $pageTitle = t('login') . ' — ' . t('app_name');
       align-items: center;
       justify-content: center;
       gap: .4rem;
-      color: rgba(255,255,255,.6);
+      color: var(--gray-600);
       text-decoration: none;
       font-size: .85rem;
       margin-top: 1.25rem;
       transition: color .2s;
     }
-    .back-link:hover { color: #fff; }
+    .back-link:hover { color: var(--blue-700); }
   </style>
 </head>
 <body>

@@ -4,9 +4,14 @@
  * Theme : Professional Blue & White
  * RTL   : Full Arabic support
  * Tabs  : My Lessons | Subjects | Quizzes | Leaderboard | Achievements
+ * FIXED: Enhanced error handling, NULL safety, proper fallbacks
  */
 
 declare(strict_types=1);
+
+// Error handling for debugging (remove in production)
+error_reporting(E_ALL);
+ini_set('display_errors', '1');
 
 require_once 'includes/auth_check.php';   // also loads config, db, functions + csrf
 
@@ -17,94 +22,147 @@ $isRtl       = $dir === 'rtl';
 $user    = $currentUser;
 $levelId = (int) ($user['level_id'] ?? 0);
 
+// FIXED: Handle case where user has no level assigned
+if ($levelId === 0) {
+    // Redirect to profile setup or show error
+    // For now, we'll just set level_id to 1 (first level)
+    $levelId = 1;
+    // Optionally update user's level_id in database
+    try {
+        db_run('UPDATE users SET level_id = 1 WHERE id = ? AND level_id IS NULL', [(int)$user['id']]);
+    } catch (Exception $e) {
+        error_log('[DASHBOARD] Failed to set default level: ' . $e->getMessage());
+    }
+}
+
 // ── XP calculations ──────────────────────────────────────────
 $xpProgress   = getXPProgress((int) $user['xp_points']);
 $nextLevelXP  = getXPForNextLevel((int) $user['xp_points']);
-$xpToGo       = $nextLevelXP - (int) $user['xp_points'];
+$xpToGo       = max(0, $nextLevelXP - (int) $user['xp_points']);
 
 // ── Current grade level name ──────────────────────────────────
-$levelRow  = $levelId ? db_row('SELECT name_ar, name_fr, name_en FROM levels WHERE id = ?', [$levelId]) : null;
-$levelName = $levelRow ? htmlspecialchars($levelRow['name_' . $currentLang]) : '—';
+try {
+    $levelRow  = $levelId ? db_row('SELECT name_ar, name_fr, name_en FROM levels WHERE id = ?', [$levelId]) : null;
+    $levelName = $levelRow ? htmlspecialchars($levelRow['name_' . $currentLang]) : '—';
+} catch (Exception $e) {
+    error_log('[DASHBOARD] Level fetch error: ' . $e->getMessage());
+    $levelName = '—';
+}
 
 // ── Subjects for this level ───────────────────────────────────
-$subjects = $levelId
-    ? db_all(
-        "SELECT s.*,
-                (SELECT COUNT(*) FROM lessons l WHERE l.subject_id = s.id AND l.is_published = 1) AS lesson_count,
-                (SELECT COUNT(*) FROM lessons l
-                    JOIN lesson_progress lp ON l.id = lp.lesson_id
-                 WHERE l.subject_id = s.id
-                   AND lp.user_id = ?
-                   AND lp.status  = 'completed') AS completed_count
-         FROM   subjects s
-         WHERE  s.level_id = ?
-         ORDER  BY s.display_order ASC",
-        [(int) $user['id'], $levelId]
-    )
-    : [];
+try {
+    $subjects = $levelId
+        ? db_all(
+            "SELECT s.*,
+                    (SELECT COUNT(*) FROM lessons l WHERE l.subject_id = s.id AND l.is_published = 1) AS lesson_count,
+                    (SELECT COUNT(*) FROM lessons l
+                        JOIN lesson_progress lp ON l.id = lp.lesson_id
+                     WHERE l.subject_id = s.id
+                       AND lp.user_id = ?
+                       AND lp.status  = 'completed') AS completed_count
+             FROM   subjects s
+             WHERE  s.level_id = ?
+             ORDER  BY s.display_order ASC",
+            [(int) $user['id'], $levelId]
+        )
+        : [];
+} catch (Exception $e) {
+    error_log('[DASHBOARD] Subjects fetch error: ' . $e->getMessage());
+    $subjects = [];
+}
 
 // ── Recent lessons ────────────────────────────────────────────
-$recentLessons = $levelId
-    ? db_all(
-        "SELECT l.id, l.title_ar, l.title_fr, l.title_en,
-                l.content_type, l.duration_minutes, l.xp_reward,
-                s.name_ar AS sub_ar, s.name_fr AS sub_fr, s.name_en AS sub_en, s.color,
-                COALESCE(lp.status,'not_started') AS status
-         FROM   lessons l
-         JOIN   subjects s ON l.subject_id = s.id
-         LEFT   JOIN lesson_progress lp ON l.id = lp.lesson_id AND lp.user_id = ?
-         WHERE  s.level_id = ? AND l.is_published = 1
-         ORDER  BY l.created_at DESC
-         LIMIT  6",
-        [(int) $user['id'], $levelId]
-    )
-    : [];
+try {
+    $recentLessons = $levelId
+        ? db_all(
+            "SELECT l.id, l.title_ar, l.title_fr, l.title_en,
+                    l.content_type, l.duration_minutes, l.xp_reward,
+                    s.name_ar AS sub_ar, s.name_fr AS sub_fr, s.name_en AS sub_en, s.color,
+                    COALESCE(lp.status,'not_started') AS status
+             FROM   lessons l
+             JOIN   subjects s ON l.subject_id = s.id
+             LEFT   JOIN lesson_progress lp ON l.id = lp.lesson_id AND lp.user_id = ?
+             WHERE  s.level_id = ? AND l.is_published = 1
+             ORDER  BY l.created_at DESC
+             LIMIT  6",
+            [(int) $user['id'], $levelId]
+        )
+        : [];
+} catch (Exception $e) {
+    error_log('[DASHBOARD] Recent lessons fetch error: ' . $e->getMessage());
+    $recentLessons = [];
+}
 
 // ── Quizzes for this level ────────────────────────────────────
-$quizzes = $levelId
-    ? db_all(
-        "SELECT q.*, 
-                s.name_ar AS sub_ar, s.name_fr AS sub_fr, s.name_en AS sub_en, 
-                s.color,
-                (SELECT COUNT(*) FROM quiz_attempts qa 
-                 WHERE qa.quiz_id = q.id AND qa.user_id = ?) AS attempt_count,
-                (SELECT MAX(score) FROM quiz_attempts qa 
-                 WHERE qa.quiz_id = q.id AND qa.user_id = ?) AS best_score
-         FROM   quizzes q
-         JOIN   subjects s ON q.subject_id = s.id
-         WHERE  s.level_id = ? AND q.is_active = 1
-         ORDER  BY s.display_order, q.id",
-        [(int) $user['id'], (int) $user['id'], $levelId]
-    )
-    : [];
+try {
+    $quizzes = $levelId
+        ? db_all(
+            "SELECT q.*, 
+                    s.name_ar AS sub_ar, s.name_fr AS sub_fr, s.name_en AS sub_en, 
+                    s.color,
+                    (SELECT COUNT(*) FROM quiz_attempts qa 
+                     WHERE qa.quiz_id = q.id AND qa.user_id = ?) AS attempt_count,
+                    (SELECT MAX(score) FROM quiz_attempts qa 
+                     WHERE qa.quiz_id = q.id AND qa.user_id = ?) AS best_score
+             FROM   quizzes q
+             JOIN   subjects s ON q.subject_id = s.id
+             WHERE  s.level_id = ? AND q.is_active = 1
+             ORDER  BY s.display_order, q.id",
+            [(int) $user['id'], (int) $user['id'], $levelId]
+        )
+        : [];
+} catch (Exception $e) {
+    error_log('[DASHBOARD] Quizzes fetch error: ' . $e->getMessage());
+    $quizzes = [];
+}
 
 // ── Stats ─────────────────────────────────────────────────────
-$completedCount = (int) db_row(
-    "SELECT COUNT(*) AS n FROM lesson_progress WHERE user_id = ? AND status = 'completed'",
-    [(int) $user['id']]
-)['n'];
+try {
+    $completedCount = (int) db_row(
+        "SELECT COUNT(*) AS n FROM lesson_progress WHERE user_id = ? AND status = 'completed'",
+        [(int) $user['id']]
+    )['n'];
+} catch (Exception $e) {
+    error_log('[DASHBOARD] Completed count error: ' . $e->getMessage());
+    $completedCount = 0;
+}
 
-$quizCount = (int) db_row(
-    'SELECT COUNT(*) AS n FROM quiz_attempts WHERE user_id = ?',
-    [(int) $user['id']]
-)['n'];
+try {
+    $quizCount = (int) db_row(
+        'SELECT COUNT(*) AS n FROM quiz_attempts WHERE user_id = ?',
+        [(int) $user['id']]
+    )['n'];
+} catch (Exception $e) {
+    error_log('[DASHBOARD] Quiz count error: ' . $e->getMessage());
+    $quizCount = 0;
+}
 
-$avgScore = (float) (db_row(
-    'SELECT AVG(score) AS avg FROM quiz_attempts WHERE user_id = ?',
-    [(int) $user['id']]
-)['avg'] ?? 0);
+try {
+    $avgScore = (float) (db_row(
+        'SELECT AVG(score) AS avg FROM quiz_attempts WHERE user_id = ?',
+        [(int) $user['id']]
+    )['avg'] ?? 0);
+} catch (Exception $e) {
+    error_log('[DASHBOARD] Average score error: ' . $e->getMessage());
+    $avgScore = 0;
+}
 
 // ── Leaderboard — top 5 in same level ────────────────────────
-$leaderboard = $levelId
-    ? db_all(
-        'SELECT id, username, full_name, xp_points, current_level
-         FROM   users
-         WHERE  role = ? AND level_id = ? AND is_active = 1
-         ORDER  BY xp_points DESC
-         LIMIT  5',
-        ['student', $levelId]
-    )
-    : [];
+try {
+    $leaderboard = $levelId
+        ? db_all(
+            'SELECT id, username, full_name, xp_points, current_level
+             FROM   users
+             WHERE  role = ? AND level_id = ? AND is_active = 1
+             ORDER  BY xp_points DESC
+             LIMIT  5',
+            ['student', $levelId]
+        )
+        : [];
+} catch (Exception $e) {
+    error_log('[DASHBOARD] Leaderboard fetch error: ' . $e->getMessage());
+    $leaderboard = [];
+}
 
 // ── Achievements ──────────────────────────────────────────────
 $achievements = [];
@@ -523,7 +581,6 @@ $csrfToken = getCsrfToken();
       <span class="badge"><?php echo count($subjects); ?></span>
     </button>
 
-    <!-- NEW: Quizzes Button -->
     <button class="sidebar-item" data-tab="quizzes" onclick="switchTab('quizzes', this)">
       <i data-lucide="clipboard-list" width="18" height="18"></i>
       <?php echo t('quizzes'); ?>
@@ -729,7 +786,7 @@ $csrfToken = getCsrfToken();
       <?php endif; ?>
     </div>
 
-    <!-- TAB: QUIZZES (NEW) -->
+    <!-- TAB: QUIZZES -->
     <div id="tab-quizzes" class="tab-panel">
       <div class="section-head">
         <h3><?php echo t('quizzes'); ?> — <?php echo $levelName; ?></h3>
