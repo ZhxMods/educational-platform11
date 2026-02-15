@@ -5,14 +5,16 @@
  * Multi-language support: Arabic (RTL), French, English
  */
 
-require_once 'config.php';
-require_once 'includes/db.php';
-require_once 'includes/functions.php';
+// Load all dependencies
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/functions.php';
 
 // Handle language switching
 if (isset($_GET['lang']) && in_array($_GET['lang'], AVAILABLE_LANGS)) {
     setLanguage($_GET['lang']);
-    redirect(SITE_URL);
+    header('Location: ' . SITE_URL);
+    exit;
 }
 
 $currentLang = getCurrentLang();
@@ -20,19 +22,21 @@ $direction = getDirection();
 
 // Fetch educational levels
 try {
-    $db = db();
-    $stmt = $db->query("SELECT * FROM levels ORDER BY display_order ASC");
-    $levels = $stmt->fetchAll();
+    $levels = db_all("SELECT * FROM levels ORDER BY display_order ASC");
     
     // Get platform statistics
-    $statsStmt = $db->query("
+    $stats = db_row("
         SELECT 
             (SELECT COUNT(*) FROM users WHERE role = 'student') as total_students,
             (SELECT COUNT(*) FROM lessons WHERE is_published = 1) as total_lessons,
             (SELECT COUNT(*) FROM subjects) as total_subjects
     ");
-    $stats = $statsStmt->fetch();
-} catch (PDOException $e) {
+    
+    if (!$stats) {
+        $stats = ['total_students' => 0, 'total_lessons' => 0, 'total_subjects' => 0];
+    }
+} catch (Exception $e) {
+    error_log('[INDEX] Database error: ' . $e->getMessage());
     $levels = [];
     $stats = ['total_students' => 0, 'total_lessons' => 0, 'total_subjects' => 0];
 }
